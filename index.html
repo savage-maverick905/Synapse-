@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>Synapse · Turn curiosity into a course</title>
+  <meta name="description" content="Tell Synapse what you want to learn and get a structured course you can read, download as a PDF and keep offline.">
+  <meta name="theme-color" content="#1E1E1E">
+  <meta name="color-scheme" content="light dark">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="assets/icons/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
+  <script>
+    /* Apply the saved theme before first paint so there is no flash. */
+    (function () {
+      try {
+        var t = JSON.parse(localStorage.getItem('synapse.theme') || '"system"');
+        var dark = t === 'dark' || (t !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+      } catch (e) {}
+    })();
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,200..800&family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..700&display=swap">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <div id="offline-banner" class="offline-banner" role="status" hidden>You're offline. Saved courses still work; generating a new course needs a connection.</div>
+  <header id="topbar" class="topbar"></header>
+  <main id="main" tabindex="-1"></main>
+  <nav id="bottomnav" class="bottomnav" aria-label="Primary"></nav>
+  <div id="toasts" class="toasts" aria-live="polite"></div>
+  <dialog id="dialog"></dialog>
+  <noscript><p style="padding:2rem">Synapse needs JavaScript to run.</p></noscript>
+
+  <script src="js/util.js"></script>
+  <script src="js/markdown.js"></script>
+  <script src="js/diagrams.js"></script>
+  <script src="js/schema.js"></script>
+  <script src="js/providers.js"></script>
+  <script src="js/openai.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/images.js"></script>
+  <script src="js/generator.js"></script>
+  <script src="js/mock.js"></script>
+  <script src="js/pdf.js"></script>
+  <script src="js/zip.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
