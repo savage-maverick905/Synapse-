@@ -527,3 +527,73 @@ body.reading .bottomnav { display: none; }
 .tag-signal { background: var(--signal-soft); color: var(--signal-text); }
 .tag-ok { background: var(--highlight-soft); color: var(--highlight-text); }
 .role-toggles { border-top: 1px solid var(--line-2); padding-top: 10px; margin-top: 4px; display: grid; gap: 4px; }
+
+/* ---------- streak chip (home) ---------- */
+.streak-chip {
+  display: inline-flex; align-items: center; gap: 6px; margin: 0 0 10px; padding: 6px 14px;
+  border-radius: 999px; background: var(--accent-soft); color: var(--accent-text); font-weight: 700; font-size: .88rem;
+  text-decoration: none; float: right;
+}
+.streak-chip svg { width: 16px; height: 16px; }
+.streak-chip .dot { opacity: .5; font-weight: 400; }
+.hero { overflow: hidden; }
+
+/* ---------- progress page: level + streak ---------- */
+.level-card { margin-top: 20px; background: var(--surface); border: 1px solid var(--line); border-radius: calc(var(--radius) + 6px); padding: 16px var(--pad); box-shadow: var(--shadow); }
+.level-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.level-badge { font-weight: 800; font-size: 1.05rem; color: var(--accent-text); }
+.level-xp { font-size: .88rem; color: var(--ink-3); font-weight: 600; }
+.level-bar { height: 10px; border-radius: 999px; background: var(--line-2); overflow: hidden; }
+.level-bar > span { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), var(--highlight)); border-radius: 999px; }
+
+.streak-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 14px; }
+.streak-tile { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; text-align: center; }
+.streak-num { display: flex; align-items: center; justify-content: center; gap: 4px; font-size: 1.5rem; font-weight: 800; }
+.streak-num svg { width: 22px; height: 22px; color: var(--accent); }
+.streak-lbl { display: block; font-size: .8rem; color: var(--ink-3); font-weight: 600; margin-top: 2px; }
+@media (min-width: 560px) { .streak-row { grid-template-columns: repeat(4, 1fr); } }
+
+/* ---------- heatmap ---------- */
+.heatmap { display: flex; gap: 3px; overflow-x: auto; padding: 14px 0 4px; }
+.hm-col { display: flex; flex-direction: column; gap: 3px; flex: none; }
+.hm-cell { width: 11px; height: 11px; border-radius: 3px; background: var(--line-2); }
+.hm-empty { background: transparent; }
+.hm-0 { background: var(--line-2); }
+.hm-1 { background: color-mix(in srgb, var(--accent) 25%, var(--surface)); }
+.hm-2 { background: color-mix(in srgb, var(--accent) 50%, var(--surface)); }
+.hm-3 { background: color-mix(in srgb, var(--accent) 75%, var(--surface)); }
+.hm-4 { background: var(--accent); }
+.hm-legend { display: flex; align-items: center; gap: 4px; margin-top: 6px; font-size: .78rem; color: var(--ink-3); }
+.hm-legend .hm-cell { width: 11px; height: 11px; }
+
+/* ---------- achievements ---------- */
+.ach-count { font-size: .85rem; color: var(--ink-3); font-weight: 600; margin-left: 8px; }
+.ach-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; margin-top: 12px; }
+.ach-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 12px; display: grid; gap: 4px; opacity: .55; }
+.ach-card.unlocked { opacity: 1; border-color: var(--accent); background: var(--accent-soft); }
+.ach-icon { font-size: 1.5rem; line-height: 1; }
+.ach-icon svg { width: 20px; height: 20px; color: var(--ink-3); }
+.ach-card b { font-size: .92rem; }
+.ach-card span:last-child { font-size: .8rem; color: var(--ink-3); line-height: 1.3; }
+
+/* ---------- course-complete notice + certificate/concept-map dialogs ---------- */
+.notice-good { display: flex; align-items: center; gap: 8px; margin-top: 16px; padding: 10px 14px; border-radius: 12px; background: var(--accent-soft); color: var(--accent-text); font-weight: 600; }
+.notice-good svg { width: 20px; height: 20px; flex: none; }
+.celebrate-head { display: flex; justify-content: center; margin-bottom: 4px; }
+.celebrate-head + h2 { text-align: center; }
+.celebrate-badge { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 50%; background: var(--accent-soft); color: var(--accent-text); }
+.celebrate-badge svg { width: 30px; height: 30px; }
+.concept-map { margin-top: 10px; }
+.concept-map svg.diagram { width: 100%; height: auto; }
+
+/* ---------- confetti ---------- */
+.confetti-host { position: fixed; inset: 0; z-index: 95; pointer-events: none; overflow: hidden; }
+.confetti-piece {
+  position: absolute; top: -12px; opacity: 0.95;
+  animation: confetti-fall var(--dur, 2s) var(--delay, 0s) cubic-bezier(.35, .6, .6, 1) forwards;
+}
+@keyframes confetti-fall {
+  0% { transform: translate(0, -10px) rotate(0deg); opacity: 1; }
+  100% { transform: translate(var(--drift, 0px), 105vh) rotate(var(--rot, 200deg)); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) { .confetti-piece { animation: none; display: none; } }

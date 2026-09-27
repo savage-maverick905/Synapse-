@@ -4,14 +4,14 @@
    - Fonts and PDF/ZIP libraries from public CDNs: cache-first, saved the first time they're used.
    - AI provider and Wikimedia requests are never cached or intercepted.
    Bump VERSION whenever the shell files change. */
-const VERSION = 'synapse-v3';
+const VERSION = 'synapse-v4';
 const SHELL_CACHE = VERSION + '-shell';
 const CDN_CACHE = VERSION + '-cdn';
 
 const SHELL = [
   './', 'index.html', 'style.css', 'app.js', 'manifest.json',
   'js/util.js', 'js/markdown.js', 'js/diagrams.js', 'js/schema.js', 'js/providers.js', 'js/openai.js', 'js/storage.js',
-  'js/images.js', 'js/generator.js', 'js/mock.js', 'js/pdf.js', 'js/zip.js',
+  'js/images.js', 'js/generator.js', 'js/mock.js', 'js/stats.js', 'js/pdf.js', 'js/certificate.js', 'js/zip.js',
   'assets/icons/icon-192.png', 'assets/icons/icon-512.png', 'assets/icons/favicon.svg', 'assets/icons/apple-touch-icon.png',
 ];
 

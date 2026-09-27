@@ -38,6 +38,12 @@
     key: '<circle cx="8" cy="12" r="3.5"/><path d="M11 12h10M17 12v4M20 12v3"/>',
     swap: '<path d="M7 7h11l-3-3M17 17H6l3 3"/>',
     backup: '<path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z"/>',
+    flame: '<path d="M12 2c1 3-3 4-3 8a3 3 0 0 0 6 0c1 1 2 2.5 2 4.5A5 5 0 0 1 7 15c0-3 2-4 1-7 1 .5 2 1.5 2 3 1-1 2-3 2-9z"/>',
+    trophy: '<path d="M7 4h10v4a5 5 0 0 1-10 0V4z"/><path d="M7 5H4a3 3 0 0 0 3 5M17 5h3a3 3 0 0 1-3 5"/><path d="M12 13v4M9 20h6M9 20l.5-3h5l.5 3"/>',
+    scroll: '<path d="M7 3h11v14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V3z"/><path d="M7 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h1"/><path d="M10 8h5M10 11h5M10 14h3"/>',
+    web: '<circle cx="6" cy="6" r="2.4"/><circle cx="18" cy="7" r="2.4"/><circle cx="12" cy="18" r="2.4"/><path d="M8 7l7-.6M7.4 8.2l3.6 8M14 16.5l3-8"/>',
+    spark: '<path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M18.4 5.6l-2.8 2.8M8.4 15.6l-2.8 2.8"/>',
+    lock: '<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
   };
   const icon = (n) => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (ICONS[n] || '') + '</svg>';
   const LOGO =
@@ -53,6 +59,123 @@
     $('#toasts').appendChild(el);
     setTimeout(() => el.remove(), kind === 'bad' ? 7000 : 3600);
   }
+
+  /** A small, dependency-free confetti burst in the brand colors. Purely decorative — no network,
+      no AI, just DOM + CSS animation. Respects reduced-motion. */
+  function celebrate() {
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const colors = ['#ED6627', '#00ADEF', '#FFAD80', '#F2F2F2'];
+    const host = document.createElement('div');
+    host.className = 'confetti-host';
+    const n = 26;
+    for (let i = 0; i < n; i++) {
+      const p = document.createElement('span');
+      p.className = 'confetti-piece';
+      const x = 10 + Math.random() * 80;
+      const drift = (Math.random() - 0.5) * 140;
+      const delay = Math.random() * 0.25;
+      const dur = 1.5 + Math.random() * 0.9;
+      const size = 6 + Math.random() * 6;
+      const rot = Math.round(Math.random() * 360);
+      p.style.cssText =
+        'left:' + x + '%;--drift:' + drift.toFixed(0) + 'px;--dur:' + dur.toFixed(2) + 's;--delay:' + delay.toFixed(2) +
+        's;--rot:' + rot + 'deg;width:' + size + 'px;height:' + (size * 0.55).toFixed(0) + 'px;background:' + colors[i % colors.length] + ';border-radius:' + (i % 3 === 0 ? '50%' : '2px');
+      host.appendChild(p);
+    }
+    document.body.appendChild(host);
+    setTimeout(() => host.remove(), 2600);
+  }
+
+  function celebrationDialogHtml(headline, lines, actions) {
+    return (
+      '<div class="celebrate-head"><span class="celebrate-badge">' + icon('trophy') + '</span></div>' +
+      '<h2>' + esc(headline) + '</h2>' +
+      lines.map((l) => '<p>' + l + '</p>').join('') +
+      '<div class="btn-row" style="margin-top:18px">' + actions + '</div>'
+    );
+  }
+
+  /** Toasts (and, for a bigger moment, confetti) after a single lesson or project completes. */
+  function announceReward(reward) {
+    if (!reward) return;
+    let big = false;
+    if (reward.xpGained) toast('+' + reward.xpGained + ' XP');
+    reward.newAchievements.forEach((a) => { toast(a.icon + ' Achievement unlocked: ' + a.title); big = true; });
+    if (reward.leveledUp) { toast('🎉 Level up! You\'re now level ' + reward.level + '.'); big = true; }
+    if (big) celebrate();
+  }
+
+  function mergeRewards(a, b) {
+    a = a || { xpGained: 0, newAchievements: [], leveledUp: false, level: 0 };
+    b = b || { xpGained: 0, newAchievements: [], leveledUp: false, level: 0 };
+    return { xpGained: a.xpGained + b.xpGained, newAchievements: a.newAchievements.concat(b.newAchievements), leveledUp: a.leveledUp || b.leveledUp, level: b.level || a.level };
+  }
+
+  function showCourseCompleteDialog(rec, reward) {
+    const lines = [
+      'You finished <b>' + esc(rec.course.title) + '</b> and earned <b>+' + reward.xpGained + ' XP</b>' + (reward.leveledUp ? ', reaching <b>level ' + reward.level + '</b>!' : '.'),
+    ].concat(reward.newAchievements.map((a) => a.icon + ' <b>' + esc(a.title) + '</b> — ' + esc(a.desc)));
+    const d = openDialog(celebrationDialogHtml('Course complete!', lines,
+      '<button class="btn btn-quiet" data-close>Back to overview</button><button class="btn btn-primary" data-cert>' + icon('scroll') + 'Get certificate</button>'));
+    d.querySelector('[data-close]').onclick = () => d.close();
+    d.querySelector('[data-cert]').onclick = () => openCertificateFlow(rec);
+    d.onclose = () => { if (location.hash !== '#/course/' + rec.id) location.hash = '#/course/' + rec.id; };
+  }
+
+  function promptForName() {
+    return new Promise((resolve) => {
+      const d = openDialog(
+        '<h2>One last thing</h2><p>What name should appear on your certificate? You can change this later in Settings.</p>' +
+        '<div class="field" style="margin-top:12px"><input class="input" id="cert-name" placeholder="Your name" autocomplete="name"></div>' +
+        '<div class="btn-row" style="margin-top:16px"><button class="btn btn-quiet" data-no>Cancel</button><button class="btn btn-primary" data-yes>Continue</button></div>'
+      );
+      const input = d.querySelector('#cert-name');
+      setTimeout(() => input.focus(), 60);
+      let result = null;
+      const go = () => { const v = input.value.trim(); if (v) { result = v; d.close(); } else input.focus(); };
+      d.querySelector('[data-yes]').onclick = go;
+      input.addEventListener('keydown', (e) => { if (e.key === 'Enter') go(); });
+      d.querySelector('[data-no]').onclick = () => d.close();
+      d.onclose = () => resolve(result);
+    });
+  }
+
+  async function openCertificateFlow(rec) {
+    let name = S.store.profile.get().name;
+    if (!name) {
+      name = await promptForName();
+      if (!name) return;
+      S.store.profile.set({ name });
+    }
+    toast('Creating your certificate…');
+    try {
+      await S.certificate.download(rec.course, { learnerName: name, courseId: rec.id, completedAt: Date.now() });
+      toast('Certificate downloaded. Congratulations! 🎓');
+    } catch (e) {
+      const x = explain(e);
+      toast(x.title + ' ' + x.hint, 'bad');
+    }
+  }
+
+  /** A course-outline diagram built purely from data already in the course — no AI involved. */
+  function conceptMapSpec(course) {
+    const nodes = course.modules.map((m, i) => ({ id: 'm' + i, label: m.title + ' (' + m.lessons.length + (m.lessons.length === 1 ? ' lesson' : ' lessons') + ')', group: i % 4 }));
+    const edges = course.modules.slice(1).map((_, i) => ({ from: 'm' + i, to: 'm' + (i + 1) }));
+    return { kind: 'flow', nodes, edges };
+  }
+
+  function openConceptMap(course) {
+    const spec = S.diagrams.clean(conceptMapSpec(course));
+    const r = spec && S.diagrams.render(spec, { mode: 'web', label: 'Concept map of ' + course.title });
+    const body = r ? r.html : '<p>Not enough modules yet for a map.</p>';
+    openDialog(
+      '<h2>Concept map</h2><p class="help">How this course’s modules connect, from start to finish.</p>' +
+      '<div class="concept-map">' + body + '</div>' +
+      '<div class="btn-row" style="margin-top:16px"><button class="btn btn-primary" data-no>Close</button></div>'
+    ).querySelector('[data-no]').onclick = (e) => e.target.closest('dialog').close();
+  }
+
+
 
   const explain = (e) =>
     e instanceof SynapseError ? { title: e.message, hint: e.hint, code: e.code } : { title: 'Something went wrong.', hint: String((e && e.message) || '').slice(0, 200), code: 'unknown' };
@@ -101,6 +224,7 @@
       '<nav aria-label="Main" class="topnav-links">' +
       '<a class="nav-link" href="#/library"' + (active === 'library' ? ' aria-current="page"' : '') + '>Saved courses</a>' +
       '<a class="nav-link" href="#/queue"' + (active === 'queue' ? ' aria-current="page"' : '') + '>Pending' + queueBadgeHtml() + '</a>' +
+      '<a class="nav-link" href="#/progress"' + (active === 'progress' ? ' aria-current="page"' : '') + '>Progress</a>' +
       '<a class="nav-link" href="#/settings"' + (active === 'settings' ? ' aria-current="page"' : '') + '>Settings</a>' +
       '</nav>' + themeButtonHtml();
   }
@@ -109,6 +233,7 @@
     ['', 'home', 'Home'],
     ['library', 'stack', 'Saved'],
     ['queue', 'queue', 'Pending'],
+    ['progress', 'flame', 'Progress'],
     ['settings', 'gear', 'Settings'],
   ];
   function renderBottomNav(active) {
@@ -146,6 +271,7 @@
       else if (a === 'settings') await viewSettings(token);
       else if (a === 'queue' && id) await viewQueueItem(token, id);
       else if (a === 'queue') await viewQueueList(token);
+      else if (a === 'progress') await viewProgress(token);
       else if (a === 'course' && id && b === 'read') await viewReader(token, id, c);
       else if (a === 'course' && id) await viewOverview(token, id);
       else await viewHome(token);
@@ -191,12 +317,21 @@
   const LENGTHS = [4, 6, 8, 12];
   const TOGGLES = [['quizzes', 'Include quizzes'], ['projects', 'Include practical projects'], ['examples', 'Include examples'], ['images', 'Include images and diagrams'], ['references', 'Include web references']];
 
+  function streakChipHtml() {
+    const s = S.stats.summary();
+    if (!s.totals.lessonsCompleted) return '';
+    return (
+      '<a class="streak-chip" href="#/progress">' + icon('flame') + '<span>' + s.streakCurrent + (s.streakCurrent === 1 ? ' day' : ' days') + '</span>' +
+      '<span class="dot">·</span><span>Lv ' + s.level + '</span><span class="dot">·</span><span>' + s.xp + ' XP</span></a>'
+    );
+  }
+
   function homeHtml(p) {
     const seg = (name, opts, cur, fmt) =>
       '<div class="seg" role="radiogroup">' + opts.map((o) => '<label><input type="radio" name="' + name + '" value="' + esc(o) + '"' + (String(o) === String(cur) ? ' checked' : '') + '><span>' + esc(fmt ? fmt(o) : o) + '</span></label>').join('') + '</div>';
     return (
       '<div class="page">' +
-      '<section class="hero"><span class="beta">Beta</span><h1 class="wordmark">SYNAPSE</h1><p class="tagline">Turn curiosity into a course.</p>' + MOTIF +
+      '<section class="hero"><span class="beta">Beta</span>' + streakChipHtml() + '<h1 class="wordmark">SYNAPSE</h1><p class="tagline">Turn curiosity into a course.</p>' + MOTIF +
       '<p class="lede">Tell Synapse what you want to learn.<br>We’ll turn it into a structured course you can actually study.</p></section>' +
       '<form id="gen-form" novalidate>' +
       '<div class="ask-wrap"><label class="ask-label" for="topic">What do you want to learn?</label>' +
@@ -596,6 +731,7 @@
     const steps = buildSteps(c);
     const counted = steps.filter((s) => s.kind !== 'refs');
     const done = counted.filter((s) => isDone(p, s.id)).length;
+    const complete = counted.length > 0 && done === counted.length;
     const cur = steps.find((s) => s.id === p.current) || steps.find((s) => !isDone(p, s.id) && s.kind !== 'refs') || steps[0];
     const started = done > 0 || !!p.current;
     const warnings = (c.meta && c.meta.warnings) || [];
@@ -606,9 +742,13 @@
       '<div><dt>Progress</dt><dd>' + done + ' of ' + counted.length + '</dd></div></dl>' +
       '<p class="desc">' + esc(c.description) + '</p>' +
       (warnings.length ? '<p class="notice" style="margin-top:16px">' + warnings.map(esc).join(' ') + '</p>' : '') +
+      (complete ? '<p class="notice notice-good">' + icon('trophy') + ' You’ve completed this course. Nice work!</p>' : '') +
       '<div class="btn-row"><a class="btn btn-primary" href="#/course/' + esc(id) + '/read/' + esc(cur.id) + '">' + (started ? 'Continue reading' : 'Start reading') + icon('right') + '</a>' +
       '<button class="btn btn-quiet" id="dl-pdf">' + icon('download') + 'Download PDF</button>' +
-      '<button class="btn btn-quiet" id="dl-zip">' + icon('pkg') + 'Download package</button></div>' +
+      '<button class="btn btn-quiet" id="dl-zip">' + icon('pkg') + 'Download package</button>' +
+      (c.modules.length > 1 ? '<button class="btn btn-quiet" id="concept-map">' + icon('web') + 'Concept map</button>' : '') +
+      (complete ? '<button class="btn btn-quiet" id="dl-cert">' + icon('scroll') + 'Get certificate</button>' : '') +
+      '</div>' +
       '<p class="export-status" id="export-status" role="status"></p>' +
       (state.unsaved.has(id) ? '<p class="notice">This course could not be saved in your browser, so it will disappear when you close the tab. Download it now.</p>' : '') +
       (c.objectives.length ? '<h2 class="h2">What you will learn</h2><ul class="objectives">' + c.objectives.map((o) => '<li>' + esc(o) + '</li>').join('') + '</ul>' : '') +
@@ -624,6 +764,8 @@
     if (!show(token, html, { nav: '', title: c.title })) return;
     $('#dl-pdf').onclick = () => exportPdf(rec);
     $('#dl-zip').onclick = () => openZipDialog(rec);
+    if ($('#dl-cert')) $('#dl-cert').onclick = () => openCertificateFlow(rec);
+    if ($('#concept-map')) $('#concept-map').onclick = () => openConceptMap(c);
     prefetchLibs();
   }
 
@@ -696,6 +838,56 @@
     }
   }
 
+  /* ============================== progress (streaks, xp, achievements) ============================== */
+  function heatmapHtml(days) {
+    // Group into week columns (Sun-Sat), most recent week last.
+    const weeks = [];
+    let col = [];
+    days.forEach((d, i) => {
+      if (i === 0) for (let k = 0; k < d.weekday; k++) col.push(null);
+      col.push(d);
+      if (d.weekday === 6 || i === days.length - 1) { weeks.push(col); col = []; }
+    });
+    const level = (n) => (n <= 0 ? 0 : n === 1 ? 1 : n === 2 ? 2 : n <= 4 ? 3 : 4);
+    return (
+      '<div class="heatmap" role="img" aria-label="Study activity over the last ' + days.length + ' days">' +
+      weeks.map((w) => '<div class="hm-col">' + w.map((d) => (d ? '<span class="hm-cell hm-' + level(d.count) + '" title="' + d.date + ': ' + d.count + (d.count === 1 ? ' step' : ' steps') + '"></span>' : '<span class="hm-cell hm-empty"></span>')).join('') + '</div>').join('') +
+      '</div>'
+    );
+  }
+
+  async function viewProgress(token) {
+    const s = S.stats.summary();
+    const list = S.stats.achievementsList();
+    const unlocked = list.filter((a) => a.unlockedAt).sort((a, b) => b.unlockedAt - a.unlockedAt);
+    const locked = list.filter((a) => !a.unlockedAt);
+    const pct = Math.round((s.xpIntoLevel / s.xpForNext) * 100);
+    const days = S.stats.heatmapDays(91);
+    const totals = s.totals;
+    const html =
+      '<div class="page"><h1 class="title">Your progress</h1>' +
+      '<p class="lede" style="font-size:1.05rem;margin-top:6px">Streaks, XP and achievements — all worked out from courses you’ve already generated. This page never calls an AI.</p>' +
+      '<div class="level-card">' +
+      '<div class="level-row"><span class="level-badge">Lv ' + s.level + '</span><span class="level-xp">' + s.xpIntoLevel + ' / ' + s.xpForNext + ' XP to next level</span></div>' +
+      '<div class="level-bar"><span style="width:' + pct + '%"></span></div>' +
+      '</div>' +
+      '<div class="streak-row">' +
+      '<div class="streak-tile"><span class="streak-num">' + icon('flame') + s.streakCurrent + '</span><span class="streak-lbl">day streak</span></div>' +
+      '<div class="streak-tile"><span class="streak-num">' + s.streakBest + '</span><span class="streak-lbl">best streak</span></div>' +
+      '<div class="streak-tile"><span class="streak-num">' + totals.lessonsCompleted + '</span><span class="streak-lbl">lessons done</span></div>' +
+      '<div class="streak-tile"><span class="streak-num">' + totals.coursesCompleted + '</span><span class="streak-lbl">courses finished</span></div>' +
+      '</div>' +
+      '<h2 class="h2" style="margin-top:30px">Study activity</h2>' +
+      heatmapHtml(days) +
+      '<div class="hm-legend"><span>Less</span><span class="hm-cell hm-0"></span><span class="hm-cell hm-1"></span><span class="hm-cell hm-2"></span><span class="hm-cell hm-3"></span><span class="hm-cell hm-4"></span><span>More</span></div>' +
+      '<h2 class="h2">Achievements <span class="ach-count">' + unlocked.length + ' / ' + list.length + '</span></h2>' +
+      '<div class="ach-grid">' +
+      unlocked.map((a) => '<div class="ach-card unlocked"><span class="ach-icon">' + a.icon + '</span><b>' + esc(a.title) + '</b><span>' + esc(a.desc) + '</span></div>').join('') +
+      locked.map((a) => '<div class="ach-card"><span class="ach-icon">' + icon('lock') + '</span><b>' + esc(a.title) + '</b><span>' + esc(a.desc) + '</span></div>').join('') +
+      '</div></div>';
+    if (!show(token, html, { nav: 'progress', title: 'Your progress' })) return;
+  }
+
   /* ============================== library ============================== */
   async function viewLibrary(token) {
     const list = await S.store.courses.list();
@@ -764,8 +956,12 @@
     const notifyPerm = S.store.notify.permission();
     const providers = S.providers.list();
     const configured = providers.filter((p) => S.store.apiKey.get(p.id)).length;
+    const profile = S.store.profile.get();
     const html =
       '<div class="page"><h1 class="title">Settings</h1>' +
+      '<section class="settings-sec"><h2>Profile</h2>' +
+      '<div class="field"><label for="learner-name">Your name</label><input class="input" id="learner-name" value="' + esc(profile.name) + '" placeholder="Used on certificates of completion" autocomplete="name"></div>' +
+      '</section>' +
       '<section class="settings-sec"><h2>AI providers</h2>' +
       '<p class="help">Synapse can hold a key for more than one AI at once. Pick a <b>writer</b> to draft courses, and turn on others as <b>backups</b> — if the writer runs out of free quota or is overloaded, Synapse switches to a backup automatically, mid-course. Only Gemini currently offers live web search, so turn it on as your <b>references</b> source even if it isn\'t your writer.</p>' +
       '<div class="field" style="margin-top:10px"><label for="prov">Writer</label><div class="select"><select id="prov">' + providers.map((p) => '<option value="' + p.id + '"' + (p.id === s.provider ? ' selected' : '') + '>' + esc(p.name) + '</option>').join('') + '</select></div></div>' +
@@ -782,6 +978,7 @@
       '<p class="help" style="margin-top:18px">Privacy: Synapse has no accounts and no analytics. Your topic and lesson requests are sent only to the AI providers you configure. Photo look-ups contact Wikimedia Commons with a short search phrase. Fonts and PDF libraries are loaded from public CDNs and cached. Nothing else leaves your device.</p></section></div>';
     if (!show(token, html, { nav: 'settings', title: 'Settings' })) return;
 
+    $('#learner-name').addEventListener('change', (e) => S.store.profile.set({ name: e.target.value.trim() }));
     $('#prov').addEventListener('change', (e) => {
       const id = e.target.value;
       S.store.settings.set({ provider: id, backups: (s.backups || []).filter((x) => x !== id) });
@@ -1047,11 +1244,33 @@
       toast('Text size: ' + RS_NAMES[n]);
     };
     $('#next').onclick = async () => {
-      if (step.kind !== 'refs' && !doneNow) { p.completed[step.id] = Date.now(); p.scroll = 0; await S.store.progress.save(p); }
+      let reward = null;
+      if (step.kind !== 'refs' && !doneNow) {
+        p.completed[step.id] = Date.now();
+        p.scroll = 0;
+        await S.store.progress.save(p);
+        if (step.kind === 'lesson') {
+          const qs = step.lesson.quiz.questions;
+          let correct = 0;
+          if (qs.length) {
+            const answers = (p.quiz && p.quiz[step.id]) || {};
+            qs.forEach((q, qi) => { if (answers[qi] === q.answerIndex) correct++; });
+          }
+          reward = S.stats.recordCompletion({ kind: 'lesson', quiz: qs.length ? { correct, total: qs.length } : undefined });
+        } else if (step.kind === 'project') {
+          reward = S.stats.recordCompletion({ kind: 'project' });
+        }
+      }
       state.freshNav = true;
-      if (next) location.hash = '#/course/' + id + '/read/' + next.id;
-      else {
-        if (!doneNow) toast('Course complete. Well done!');
+      if (next) {
+        location.hash = '#/course/' + id + '/read/' + next.id;
+        announceReward(reward);
+      } else if (!doneNow) {
+        const savedCourseCount = (await S.store.courses.list()).length;
+        const courseReward = S.stats.recordCompletion({ kind: 'course', extra: { savedCourseCount } });
+        celebrate();
+        showCourseCompleteDialog(rec, mergeRewards(reward, courseReward));
+      } else {
         location.hash = '#/course/' + id;
       }
     };

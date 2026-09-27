@@ -39,6 +39,8 @@ course** on the home screen to try the reader and exports without a key.
     js/images.js      Wikimedia Commons photo lookup (with licence + attribution), JPEG optimisation
     js/storage.js     localStorage prefs / key, IndexedDB courses + progress
     js/pdf.js         pdfmake document definition → real selectable-text PDF (6×9 in book)
+    js/certificate.js one-page "Certificate of Completion" PDF, reuses the pdf.js engine
+    js/stats.js       XP, levels, streaks, achievements — pure local logic, zero AI calls
     js/zip.js         JSZip package builder
     js/mock.js        hand-written sample course
 
@@ -65,6 +67,14 @@ IBM Plex TTFs for the PDF (falls back to bundled Roboto if unreachable).
 * Lessons can only cite indexes into that verified list.
 * The model never supplies image URLs; photos come from Wikimedia Commons with licence and attribution, or are omitted.
 * Progress is reported as real counts (module 3 of 6), never a percentage.
+
+## Streaks, XP, achievements & certificates
+Reading a lesson, finishing a project, or completing a course earns XP and keeps a daily study
+streak (a calendar heatmap and 15 achievements live on the **Progress** tab). A "Get certificate"
+button appears once a course reaches 100%, generating a one-page PDF diploma with the learner's
+name (set once in Settings → Profile, reused after that). A "Concept map" button on any multi-module
+course draws a small diagram of how its modules connect. **None of this ever calls an AI provider** —
+everything is derived from courses already sitting in the browser, so it costs zero API credits to use.
 
 ## Design system
 Hie Technologies palette: `#1E1E1E` dark surfaces, `#F2F2F2` light surfaces, `#ED6627` orange as the one
