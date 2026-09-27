@@ -569,10 +569,23 @@
 
   const wrapErr = (e) => new S.util.SynapseError('pdf', "The PDF couldn't be created.", { hint: String((e && e.message) || e || '').slice(0, 200), cause: e });
 
+  /** For building a PDF from a plain, hand-made docDefinition (e.g. a certificate) rather than
+      a course. Reuses the same engine/font loading and page-render pipeline. */
+  async function renderCustomDoc(docDefinition, opts) {
+    opts = opts || {};
+    const status = opts.onStatus || (() => {});
+    status('Loading the PDF engine…');
+    await ensureLibs();
+    status('Preparing fonts…');
+    const { fonts, vfs } = await loadFonts();
+    await nextFrame();
+    return renderBlob(window.pdfMake.createPdf(docDefinition, layouts, fonts, vfs));
+  }
+
   /** Warm the cache so exporting works offline later. Safe to call repeatedly. */
   function prefetch() {
     return ensureLibs().then(() => loadFonts()).catch(() => {});
   }
 
-  S.pdf = { buildDoc, generate, prefetch, layouts, PAGE };
+  S.pdf = { buildDoc, generate, renderCustomDoc, prefetch, layouts, PAGE, C };
 })();

@@ -94,6 +94,11 @@
     },
   };
 
+  const profile = {
+    get() { return Object.assign({ name: '' }, LS.get('synapse.profile', {})); },
+    set(patch) { const p = Object.assign(profile.get(), patch); LS.set('synapse.profile', p); return p; },
+  };
+
   /* ---------- IndexedDB ---------- */
   const DB_NAME = 'synapse';
   const DB_VERSION = 2;
@@ -256,7 +261,7 @@
   }
 
   S.store = {
-    prefs, settings, theme, apiKey, courses, progress, queue, notify, estimateUsage,
+    prefs, settings, theme, apiKey, courses, progress, queue, notify, profile, estimateUsage,
     isMemoryOnly: () => usingMemory,
     ready: () => openDb(),
     DEFAULT_PREFS,
