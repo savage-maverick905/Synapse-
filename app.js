@@ -44,6 +44,10 @@
     web: '<circle cx="6" cy="6" r="2.4"/><circle cx="18" cy="7" r="2.4"/><circle cx="12" cy="18" r="2.4"/><path d="M8 7l7-.6M7.4 8.2l3.6 8M14 16.5l3-8"/>',
     spark: '<path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M18.4 5.6l-2.8 2.8M8.4 15.6l-2.8 2.8"/>',
     lock: '<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+    quote: '<path d="M7 8c-2.2 0-4 1.8-4 4v4h4v-4H5c0-1.1.9-2 2-2V8zm10 0c-2.2 0-4 1.8-4 4v4h4v-4h-2c0-1.1.9-2 2-2V8z"/>',
+    refresh: '<path d="M4 12a8 8 0 0 1 14-5.2M20 12a8 8 0 0 1-14 5.2"/><path d="M18 3v4h-4M6 21v-4h4"/>',
+    image: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5.5-5.5L4 21"/>',
+    mystery: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.2a2.5 2.5 0 0 1 4.9.8c0 1.7-2.4 2-2.4 3.5" /><path d="M12 17h.01"/>',
   };
   const icon = (n) => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (ICONS[n] || '') + '</svg>';
   const LOGO =
@@ -352,6 +356,7 @@
       '</form>' +
       '<div class="subtle-row"><a href="#/settings">AI: ' + esc(currentProvider().name) + ' · key and settings</a><button class="link-btn" id="sample" type="button">Explore a sample course</button></div>' +
       '<section id="pending"></section>' +
+      '<section id="discover"></section>' +
       '<section id="recent"></section></div>'
     );
   }
@@ -377,6 +382,7 @@
     $('#btn-queue').addEventListener('click', () => submitCourse(form, 'queue'));
     $('#sample').addEventListener('click', openSample);
     loadPending(token, '#pending', true);
+    loadDiscoverCard(token, 'fact');
     loadRecent(token);
   }
 
@@ -438,6 +444,61 @@
     if (token !== state.token || !$('#recent')) return;
     $('#recent').innerHTML =
       '<div class="section-head"><h2>Continue learning</h2><a href="#/library">All saved courses</a></div>' + courseRows(items);
+  }
+
+  /* ---------- discover: real-web facts & quotes, styled as a shareable Synapse card ---------- */
+  function discoverCardHtml(card, kind, busy) {
+    const isQuote = kind === 'quote';
+    return (
+      '<div class="section-head"><h2>' + (isQuote ? 'Quote of the day' : 'Did you know?') + '</h2>' +
+      '<div class="seg seg-sm" role="radiogroup" aria-label="Card type">' +
+      '<label><input type="radio" name="disc-kind" value="fact"' + (!isQuote ? ' checked' : '') + '><span>' + icon('spark') + '</span></label>' +
+      '<label><input type="radio" name="disc-kind" value="quote"' + (isQuote ? ' checked' : '') + '><span>' + icon('quote') + '</span></label>' +
+      '</div></div>' +
+      '<div class="discover-card' + (busy ? ' busy' : '') + '">' +
+      (card
+        ? '<p class="discover-text">' + (isQuote ? '“' + esc(card.text) + '”' : esc(card.text)) + '</p>' +
+          '<p class="discover-attr">' + (isQuote ? '— ' : '') + esc(card.attribution) + (card.offline ? '' : card.sourceUrl ? ' <a href="' + esc(card.sourceUrl) + '" target="_blank" rel="noopener noreferrer">Source</a>' : '') + '</p>'
+        : '<p class="discover-text discover-loading">Fetching something interesting…</p>') +
+      '<div class="btn-row discover-actions">' +
+      '<button class="icon-btn" id="disc-shuffle" type="button" aria-label="Show me another">' + icon('refresh') + '</button>' +
+      '<button class="btn btn-quiet" id="disc-save" type="button">' + icon('image') + 'Save as image</button>' +
+      '</div></div>'
+    );
+  }
+
+  async function loadDiscoverCard(token, kind) {
+    const el = $('#discover');
+    if (!el) return;
+    el.innerHTML = discoverCardHtml(null, kind, true);
+    const card = await S.discover.today(kind);
+    if (token !== state.token || !$('#discover')) return;
+    renderDiscoverCard(token, card, kind);
+  }
+
+  function renderDiscoverCard(token, card, kind) {
+    const el = $('#discover');
+    if (!el) return;
+    el.innerHTML = discoverCardHtml(card, kind);
+    $$('input[name=disc-kind]', el).forEach((r) => r.addEventListener('change', () => loadDiscoverCard(token, r.value)));
+    $('#disc-shuffle').onclick = async () => {
+      el.querySelector('.discover-card').classList.add('busy');
+      const next = await S.discover.another(kind);
+      if (token === state.token && $('#discover')) renderDiscoverCard(token, next, kind);
+    };
+    $('#disc-save').onclick = async () => {
+      const btn = $('#disc-save');
+      btn.setAttribute('aria-busy', 'true');
+      try {
+        await S.discover.downloadCard(card);
+        announceReward(S.stats.recordCardSaved());
+        toast((kind === 'quote' ? 'Quote' : 'Fact') + ' card saved as an image.');
+      } catch (e) {
+        toast("Couldn't create that image on this device.", 'bad');
+      } finally {
+        btn.setAttribute('aria-busy', 'false');
+      }
+    };
   }
 
   async function loadPending(token, sel, linkToAll) {
@@ -883,7 +944,9 @@
       '<h2 class="h2">Achievements <span class="ach-count">' + unlocked.length + ' / ' + list.length + '</span></h2>' +
       '<div class="ach-grid">' +
       unlocked.map((a) => '<div class="ach-card unlocked"><span class="ach-icon">' + a.icon + '</span><b>' + esc(a.title) + '</b><span>' + esc(a.desc) + '</span></div>').join('') +
-      locked.map((a) => '<div class="ach-card"><span class="ach-icon">' + icon('lock') + '</span><b>' + esc(a.title) + '</b><span>' + esc(a.desc) + '</span></div>').join('') +
+      locked.map((a) => a.secret
+        ? '<div class="ach-card secret"><span class="ach-icon">' + icon('mystery') + '</span><b>???</b><span>Keep exploring to find this one.</span></div>'
+        : '<div class="ach-card"><span class="ach-icon">' + icon('lock') + '</span><b>' + esc(a.title) + '</b><span>' + esc(a.desc) + '</span></div>').join('') +
       '</div></div>';
     if (!show(token, html, { nav: 'progress', title: 'Your progress' })) return;
   }

@@ -597,3 +597,30 @@ body.reading .bottomnav { display: none; }
   100% { transform: translate(var(--drift, 0px), 105vh) rotate(var(--rot, 200deg)); opacity: 0; }
 }
 @media (prefers-reduced-motion: reduce) { .confetti-piece { animation: none; display: none; } }
+
+/* ---------- discover: facts & quotes ---------- */
+.seg-sm { padding: 2px; }
+.seg-sm label { flex: none; }
+.seg-sm span { min-height: 34px; min-width: 40px; padding: 0 10px; }
+.seg-sm span svg { width: 17px; height: 17px; display: block; }
+.seg-sm input:checked + span { background: var(--accent); color: var(--accent-ink); }
+.discover-card {
+  margin-top: 4px; background: var(--surface); border: 1px solid var(--line); border-radius: calc(var(--radius) + 6px);
+  padding: 20px var(--pad); box-shadow: var(--shadow); position: relative; overflow: hidden;
+}
+.discover-card::before {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: linear-gradient(var(--accent), var(--signal));
+}
+.discover-text { font-family: var(--font-read); font-size: 1.15rem; line-height: 1.5; color: var(--ink); }
+.discover-loading { color: var(--ink-3); font-style: italic; animation: pulse 1.4s ease-in-out infinite; }
+@keyframes pulse { 0%, 100% { opacity: .6; } 50% { opacity: 1; } }
+.discover-attr { margin-top: 10px; font-size: .9rem; color: var(--signal-text); font-weight: 600; }
+.discover-attr a { margin-left: 6px; font-weight: 600; }
+.discover-actions { margin-top: 16px; }
+.discover-actions .btn-quiet { flex: 1; }
+.discover-card.busy .discover-text, .discover-card.busy .discover-attr { opacity: .35; }
+#disc-save[aria-busy="true"] { opacity: .6; pointer-events: none; }
+
+/* ---------- secret achievements ---------- */
+.ach-card.secret { border-style: dashed; opacity: .8; }
+.ach-card.secret .ach-icon svg { color: var(--ink-3); }

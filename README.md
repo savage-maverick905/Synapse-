@@ -41,6 +41,7 @@ course** on the home screen to try the reader and exports without a key.
     js/pdf.js         pdfmake document definition → real selectable-text PDF (6×9 in book)
     js/certificate.js one-page "Certificate of Completion" PDF, reuses the pdf.js engine
     js/stats.js       XP, levels, streaks, achievements — pure local logic, zero AI calls
+    js/discover.js    real "did you know" facts (Wikipedia) and quotes, as shareable PNG cards
     js/zip.js         JSZip package builder
     js/mock.js        hand-written sample course
 
@@ -67,6 +68,14 @@ IBM Plex TTFs for the PDF (falls back to bundled Roboto if unreachable).
 * Lessons can only cite indexes into that verified list.
 * The model never supplies image URLs; photos come from Wikimedia Commons with licence and attribution, or are omitted.
 * Progress is reported as real counts (module 3 of 6), never a percentage.
+
+## Real-web facts & quotes
+The home screen has a "Did you know?" / quote-of-the-day card. Facts come from Wikipedia's public
+REST API, picked around a topic from a course already in the library when one exists (otherwise a
+random Wikipedia fact); quotes come from a free public quotes API. Both are real web content, not
+AI-generated, and both gracefully fall back to a small bundled set if the network or the source is
+unavailable — including fully offline. "Save as image" renders the card as a Synapse-styled PNG
+(1080×1080, canvas-drawn) for sharing.
 
 ## Streaks, XP, achievements & certificates
 Reading a lesson, finishing a project, or completing a course earns XP and keeps a daily study
