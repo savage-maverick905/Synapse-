@@ -35,7 +35,7 @@
     return (d.body.textContent || '').replace(/\s+/g, ' ').trim();
   };
 
-  const tokens = (s) => String(s || '').toLowerCase().split(/[^a-z0-9]+/).filter((t) => t.length >= 4);
+  const tokens = (s) => String(s || '').toLowerCase().split(/[^a-z0-9]+/).filter((t) => t.length >= 3);
 
   const FREE_LICENSE = /^(cc[ -]?(by|0)|public domain|pd|attribution)/i;
 
@@ -52,7 +52,7 @@
   async function searchCommons(query, signal) {
     const params = new URLSearchParams({
       action: 'query', format: 'json', origin: '*',
-      generator: 'search', gsrsearch: query + ' filetype:bitmap', gsrnamespace: '6', gsrlimit: '8',
+      generator: 'search', gsrsearch: query + ' filetype:bitmap', gsrnamespace: '6', gsrlimit: '12',
       prop: 'imageinfo', iiprop: 'url|extmetadata|mime|size', iiurlwidth: String(MAX_W),
       iiextmetadatafilter: 'LicenseShortName|Artist|Credit|ImageDescription|Restrictions|ObjectName',
     });
@@ -61,6 +61,28 @@
     const json = await res.json();
     const pages = (json.query && json.query.pages) || {};
     return Object.values(pages).sort((a, b) => (a.index || 0) - (b.index || 0));
+  }
+
+  /** Progressively broader phrasings of a search query: the full phrase, then just its first
+      couple of words, then its single most distinctive word. Commons' own search ranks results
+      for whichever phrase we send, so a broader retry finds real photos that a narrow phrase
+      (or one that doesn't literally appear in a file's sparse title/description) would miss. */
+  function queryAttempts(q) {
+    const words = String(q || '').trim().split(/\s+/).filter(Boolean);
+    const out = [q];
+    if (words.length > 2) out.push(words.slice(0, 2).join(' '));
+    if (words.length > 1) out.push(words[words.length - 1].length >= words[0].length ? words[words.length - 1] : words[0]);
+    return out.filter((v, i, a) => v && a.indexOf(v) === i);
+  }
+
+  function acceptable(p) {
+    const info = p.imageinfo && p.imageinfo[0];
+    if (!info || !/^image\/(jpeg|png|gif)$/.test(info.mime) || info.width < 400) return null;
+    const meta = info.extmetadata || {};
+    const lic = stripHtml(meta.LicenseShortName && meta.LicenseShortName.value);
+    if (!lic || !FREE_LICENSE.test(lic) || /-(nc|nd)\b|\bnc\b|\bnd\b/i.test(lic)) return null;
+    if (meta.Restrictions && stripHtml(meta.Restrictions.value)) return null;
+    return { info, meta, lic };
   }
 
   /** Try to attach a real, attributed photo. Returns true on success. */
@@ -76,28 +98,36 @@
         return true;
       }
       if (!img.searchQuery) return false;
-      const pages = await searchCommons(img.searchQuery, signal);
-      const want = tokens(img.searchQuery);
-      for (const p of pages) {
-        const info = p.imageinfo && p.imageinfo[0];
-        if (!info || !/^image\/(jpeg|png)$/.test(info.mime) || info.width < 400) continue;
-        const meta = info.extmetadata || {};
-        const lic = stripHtml(meta.LicenseShortName && meta.LicenseShortName.value);
-        if (!lic || !FREE_LICENSE.test(lic) || /-(nc|nd)\b|\bnc\b|\bnd\b/i.test(lic)) continue;
-        if (meta.Restrictions && stripHtml(meta.Restrictions.value)) continue;
-        const hay = tokens(p.title + ' ' + stripHtml(meta.ImageDescription && meta.ImageDescription.value) + ' ' + stripHtml(meta.ObjectName && meta.ObjectName.value));
-        if (want.length && !want.some((t) => hay.includes(t))) continue;
-        const thumb = info.thumburl || info.url;
-        const res = await fetchWithTimeout(thumb, { signal }, 15000);
-        if (!res.ok) continue;
-        const o = await optimize(await res.blob());
-        const artist = stripHtml(meta.Artist && meta.Artist.value) || stripHtml(meta.Credit && meta.Credit.value) || 'Unknown author';
-        const name = p.title.replace(/^File:/, '').replace(/\.[a-z0-9]+$/i, '');
-        img.dataUrl = o.dataUrl;
-        img.license = lic;
-        img.attribution = '"' + name + '" by ' + artist.slice(0, 120) + ', ' + lic + ', via Wikimedia Commons';
-        img.sourceUrl = info.descriptionurl || '';
-        return true;
+
+      for (const q of queryAttempts(img.searchQuery)) {
+        const pages = await searchCommons(q, signal);
+        // Commons' own search relevance already ordered these for our query; we only filter for
+        // licence/format/size, and lightly prefer whichever candidate's own words overlap ours.
+        const want = tokens(q);
+        const scored = pages
+          .map((p) => ({ p, ok: acceptable(p) }))
+          .filter((x) => x.ok)
+          .map((x) => {
+            const hay = tokens(x.p.title + ' ' + stripHtml(x.ok.meta.ImageDescription && x.ok.meta.ImageDescription.value) + ' ' + stripHtml(x.ok.meta.ObjectName && x.ok.meta.ObjectName.value));
+            const overlap = want.filter((t) => hay.includes(t)).length;
+            return { p: x.p, ok: x.ok, overlap };
+          })
+          .sort((a, b) => b.overlap - a.overlap);
+
+        for (const { p, ok } of scored) {
+          const thumb = ok.info.thumburl || ok.info.url;
+          const res = await fetchWithTimeout(thumb, { signal }, 15000);
+          if (!res.ok) continue;
+          let out;
+          try { out = await optimize(await res.blob()); } catch (e) { continue; } // e.g. an undecodable image; try the next candidate
+          const artist = stripHtml(ok.meta.Artist && ok.meta.Artist.value) || stripHtml(ok.meta.Credit && ok.meta.Credit.value) || 'Unknown author';
+          const name = p.title.replace(/^File:/, '').replace(/\.[a-z0-9]+$/i, '');
+          img.dataUrl = out.dataUrl;
+          img.license = ok.lic;
+          img.attribution = '"' + name + '" by ' + artist.slice(0, 120) + ', ' + ok.lic + ', via Wikimedia Commons';
+          img.sourceUrl = ok.info.descriptionurl || '';
+          return true;
+        }
       }
     } catch (e) {
       if (e && e.name === 'AbortError' && signal && signal.aborted) throw S.util.abortError();

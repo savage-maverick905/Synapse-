@@ -22,6 +22,7 @@
       lessonsCompleted: 0, projectsCompleted: 0, coursesCompleted: 0,
       quizzesTaken: 0, correctAnswers: 0, perfectQuizzes: 0,
       nightOwlDone: false, earlyBirdDone: false, maxLessonsInDay: 0,
+      nightOwlCount: 0, cardsSaved: 0,
     },
     unlocked: {},
   });
@@ -84,6 +85,8 @@
     { id: 'early_bird', icon: '🐦', title: 'Early Bird', desc: 'Complete a lesson before 7am.', test: (s) => s.totals.earlyBirdDone },
     { id: 'speed_runner', icon: '⚡', title: 'Speed Runner', desc: 'Complete 5 lessons in a single day.', test: (s) => s.totals.maxLessonsInDay >= 5 },
     { id: 'explorer', icon: '🧭', title: 'Explorer', desc: 'Save 3 different courses.', test: (s, extra) => !!extra && extra.savedCourseCount >= 3 },
+    { id: 'night_shift', icon: '🌌', title: 'Night Shift', desc: 'Complete lessons after midnight on 3 different occasions.', secret: true, test: (s) => s.totals.nightOwlCount >= 3 },
+    { id: 'collector', icon: '🗂️', title: 'Collector', desc: 'Save 5 fact or quote cards.', secret: true, test: (s) => s.totals.cardsSaved >= 5 },
   ];
 
   function checkAchievements(stats, extra) {
@@ -99,7 +102,7 @@
   }
 
   /* ---------- recording a completion ---------- */
-  const XP = { lesson: 10, project: 25, course: 50, correctAnswer: 5 };
+  const XP = { lesson: 10, project: 25, course: 50, correctAnswer: 5, card: 5 };
 
   /**
    * kind: 'lesson' | 'project' | 'course'
@@ -130,7 +133,7 @@
       xpGained += XP.lesson;
       stats.totals.maxLessonsInDay = Math.max(stats.totals.maxLessonsInDay, stats.activeDates[today]);
       const hour = now.getHours();
-      if (hour < 4) stats.totals.nightOwlDone = true;
+      if (hour < 4) { stats.totals.nightOwlDone = true; stats.totals.nightOwlCount += 1; }
       else if (hour >= 5 && hour < 7) stats.totals.earlyBirdDone = true;
     } else if (kind === 'project') {
       stats.totals.projectsCompleted += 1;
@@ -155,6 +158,18 @@
       leveledUp: after.level > before.level, level: after.level,
       streak: Object.assign({}, stats.streak),
     };
+  }
+
+  /** A small, separate reward path for saving a fact/quote card — a few XP, no streak/day logic. */
+  function recordCardSaved() {
+    const stats = load();
+    const before = levelFromXp(stats.xp);
+    stats.totals.cardsSaved += 1;
+    stats.xp += XP.card;
+    const newAchievements = checkAchievements(stats);
+    save(stats);
+    const after = levelFromXp(stats.xp);
+    return { xpGained: XP.card, newAchievements, leveledUp: after.level > before.level, level: after.level };
   }
 
   /* ---------- reading ---------- */
@@ -192,5 +207,5 @@
     return ACHIEVEMENTS.map((a) => Object.assign({}, a, { unlockedAt: stats.unlocked[a.id] || null }));
   }
 
-  S.stats = { load, save, levelFromXp, recordCompletion, heatmapDays, summary, achievementsList, ACHIEVEMENTS, dateKey };
+  S.stats = { load, save, levelFromXp, recordCompletion, recordCardSaved, heatmapDays, summary, achievementsList, ACHIEVEMENTS, dateKey };
 })();
