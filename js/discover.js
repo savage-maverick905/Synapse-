@@ -160,6 +160,65 @@
     }
   }
 
+  /* ---------- feed: many distinct items at once, for continuous scrolling ---------- */
+  function shuffleArr(arr) {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  async function topicPool() {
+    const titles = await topicsFromLibrary();
+    try {
+      const list = await S.store.courses.list();
+      const recs = await Promise.all(list.slice(0, 10).map((s) => S.store.courses.get(s.id)));
+      recs.forEach((r) => { if (r && r.course) r.course.modules.forEach((m) => { if (m.title) titles.push(m.title); }); });
+    } catch (e) { /* topics-only is fine if this fails */ }
+    return shuffleArr(titles);
+  }
+
+  /** `count` distinct fact or quote cards for a scrolling feed — not tied to the once-a-day pick.
+      Cycles through different topics from the library (module titles too, for more variety than
+      just course titles) so a feed session doesn't repeat itself. Falls back per-item, so one
+      failed lookup never breaks the rest of the batch. */
+  async function feedBatch(kind, count, seenTexts) {
+    seenTexts = seenTexts || new Set();
+    const topics = kind === 'fact' ? await topicPool() : [];
+    const out = [];
+    let topicIdx = 0;
+    let guard = 0;
+    while (out.length < count && guard < count * 5 + 6) {
+      guard++;
+      let card;
+      try {
+        if (kind === 'quote') {
+          card = await freshQuote();
+        } else if (topics.length) {
+          const topic = topics[topicIdx % topics.length];
+          topicIdx++;
+          const r = await wikipediaSummaryFor(topic);
+          card = { kind: 'fact', text: r.text, attribution: r.sourceTitle + ' · Wikipedia', sourceUrl: r.sourceUrl, topic };
+        } else {
+          const r = await wikipediaRandomSummary();
+          card = { kind: 'fact', text: r.text, attribution: r.sourceTitle + ' · Wikipedia', sourceUrl: r.sourceUrl, topic: '' };
+        }
+      } catch (e) {
+        const pool = kind === 'quote' ? FALLBACK_QUOTES : FALLBACK_FACTS;
+        const pick = pool[Math.floor(Math.random() * pool.length)];
+        card = kind === 'quote'
+          ? { kind: 'quote', text: pick.text, attribution: pick.author, sourceUrl: '', topic: '', offline: true }
+          : { kind: 'fact', text: pick, attribution: 'Synapse', sourceUrl: '', topic: '', offline: true };
+      }
+      if (!card || !card.text || seenTexts.has(card.text)) continue;
+      seenTexts.add(card.text);
+      out.push(card);
+    }
+    return out;
+  }
+
   /* ---------- daily cache ---------- */
   const cacheKey = (kind) => 'synapse.discover.' + kind + '.' + todayKey();
 
@@ -269,5 +328,5 @@
     return blob;
   }
 
-  S.discover = { today, another, downloadCard, renderCardPng, FALLBACK_FACTS, FALLBACK_QUOTES };
+  S.discover = { today, another, feedBatch, downloadCard, renderCardPng, FALLBACK_FACTS, FALLBACK_QUOTES };
 })();

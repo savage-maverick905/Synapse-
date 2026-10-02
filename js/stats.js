@@ -172,6 +172,22 @@
     return { xpGained: XP.card, newAchievements, leveledUp: after.level > before.level, level: after.level };
   }
 
+  /** A round of pooled practice questions (Quick Quiz) — same scoring as a lesson quiz, without
+      touching the streak or lesson/course totals, since no lesson was actually completed. */
+  function recordQuizRound({ correct, total }) {
+    const stats = load();
+    const before = levelFromXp(stats.xp);
+    stats.totals.quizzesTaken += 1;
+    stats.totals.correctAnswers += correct;
+    const xpGained = correct * XP.correctAnswer;
+    if (total > 0 && correct === total) stats.totals.perfectQuizzes += 1;
+    stats.xp += xpGained;
+    const newAchievements = checkAchievements(stats);
+    save(stats);
+    const after = levelFromXp(stats.xp);
+    return { xpGained, newAchievements, leveledUp: after.level > before.level, level: after.level };
+  }
+
   /* ---------- reading ---------- */
   function heatmapDays(n) {
     n = n || 84;
@@ -207,5 +223,5 @@
     return ACHIEVEMENTS.map((a) => Object.assign({}, a, { unlockedAt: stats.unlocked[a.id] || null }));
   }
 
-  S.stats = { load, save, levelFromXp, recordCompletion, recordCardSaved, heatmapDays, summary, achievementsList, ACHIEVEMENTS, dateKey };
+  S.stats = { load, save, levelFromXp, recordCompletion, recordCardSaved, recordQuizRound, heatmapDays, summary, achievementsList, ACHIEVEMENTS, dateKey };
 })();
