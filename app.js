@@ -48,6 +48,8 @@
     refresh: '<path d="M4 12a8 8 0 0 1 14-5.2M20 12a8 8 0 0 1-14 5.2"/><path d="M18 3v4h-4M6 21v-4h4"/>',
     image: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5.5-5.5L4 21"/>',
     mystery: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.2a2.5 2.5 0 0 1 4.9.8c0 1.7-2.4 2-2.4 3.5" /><path d="M12 17h.01"/>',
+    more: '<rect x="4" y="4" width="6" height="6" rx="1.2"/><rect x="14" y="4" width="6" height="6" rx="1.2"/><rect x="4" y="14" width="6" height="6" rx="1.2"/><rect x="14" y="14" width="6" height="6" rx="1.2"/>',
+    upload: '<path d="M12 20V9M7 13l5-5 5 5"/><path d="M5 20h14"/>',
   };
   const icon = (n) => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (ICONS[n] || '') + '</svg>';
   const LOGO =
@@ -222,29 +224,38 @@
     $$('[data-theme-toggle]').forEach((b) => { b.outerHTML = themeButtonHtml(); });
   }
 
-  function renderTopbar(active) {
-    topbar.innerHTML =
-      '<a class="brand" href="#/" aria-label="Synapse home">' + LOGO + '<span>SYNAPSE</span></a><span class="spacer"></span>' +
-      '<nav aria-label="Main" class="topnav-links">' +
-      '<a class="nav-link" href="#/library"' + (active === 'library' ? ' aria-current="page"' : '') + '>Saved courses</a>' +
-      '<a class="nav-link" href="#/queue"' + (active === 'queue' ? ' aria-current="page"' : '') + '>Pending' + queueBadgeHtml() + '</a>' +
-      '<a class="nav-link" href="#/progress"' + (active === 'progress' ? ' aria-current="page"' : '') + '>Progress</a>' +
-      '<a class="nav-link" href="#/settings"' + (active === 'settings' ? ' aria-current="page"' : '') + '>Settings</a>' +
-      '</nav>' + themeButtonHtml();
+  /* ---------- navigation: a single registry drives the sidebar, bottom tabs, and the More page ---------- */
+  const DESTINATIONS = [
+    { id: 'home', href: '#/', icon: 'home', label: 'Home', primary: true },
+    { id: 'discover', href: '#/discover', icon: 'spark', label: 'Discover', primary: true },
+    { id: 'queue', href: '#/queue', icon: 'queue', label: 'Pending', primary: true, badge: true },
+    { id: 'library', href: '#/library', icon: 'stack', label: 'Saved courses' },
+    { id: 'progress', href: '#/progress', icon: 'flame', label: 'Progress' },
+    { id: 'settings', href: '#/settings', icon: 'gear', label: 'Settings' },
+  ];
+  const TABS = DESTINATIONS.filter((d) => d.primary).concat([{ id: 'more', href: '#/more', icon: 'more', label: 'More' }]);
+
+  function renderTopbar() {
+    topbar.innerHTML = '<a class="brand" href="#/" aria-label="Synapse home">' + LOGO + '<span>SYNAPSE</span></a><span class="spacer"></span>' + themeButtonHtml();
   }
 
-  const TABS = [
-    ['', 'home', 'Home'],
-    ['library', 'stack', 'Saved'],
-    ['queue', 'queue', 'Pending'],
-    ['progress', 'flame', 'Progress'],
-    ['settings', 'gear', 'Settings'],
-  ];
+  function renderSidebar(active) {
+    const el = $('#sidebar');
+    if (!el) return;
+    el.innerHTML =
+      '<a class="side-brand" href="#/" aria-label="Synapse home">' + LOGO + '<span>SYNAPSE</span></a>' +
+      '<nav class="side-nav" aria-label="Main">' +
+      DESTINATIONS.map((d) => '<a class="side-link" href="' + d.href + '"' + (active === d.id ? ' aria-current="page"' : '') + '>' + icon(d.icon) + (d.badge ? queueBadgeHtml() : '') + '<span>' + d.label + '</span></a>').join('') +
+      '</nav><div class="side-foot">' + themeButtonHtml() + '</div>';
+  }
+
+  /** Only shows for the primary destinations (plus More) — every other page hides it, per design. */
   function renderBottomNav(active) {
     const nav = $('#bottomnav');
     if (!nav) return;
-    nav.innerHTML = TABS.map(([id, ic, label]) =>
-      '<a class="tab-link" href="#/' + id + '"' + (active === id ? ' aria-current="page"' : '') + '>' + icon(ic) + (id === 'queue' ? queueBadgeHtml() : '') + '<span>' + label + '</span></a>'
+    if (!TABS.some((t) => t.id === active)) { nav.innerHTML = ''; return; }
+    nav.innerHTML = TABS.map((t) =>
+      '<a class="tab-link" href="' + t.href + '"' + (active === t.id ? ' aria-current="page"' : '') + '>' + icon(t.icon) + (t.badge ? queueBadgeHtml() : '') + '<span>' + t.label + '</span></a>'
     ).join('');
   }
 
@@ -254,8 +265,7 @@
     const list = await S.store.queue.list();
     queueCount = list.filter((i) => i.status !== 'done').length;
     if ($('#bottomnav')) renderBottomNav(currentActiveNav());
-    const link = $('.topnav-links a[href="#/queue"]');
-    if (link) link.innerHTML = 'Pending' + queueBadgeHtml();
+    if ($('#sidebar')) renderSidebar(currentActiveNav());
   }
   let lastNav = '';
   function currentActiveNav() { return lastNav; }
@@ -276,13 +286,16 @@
       else if (a === 'queue' && id) await viewQueueItem(token, id);
       else if (a === 'queue') await viewQueueList(token);
       else if (a === 'progress') await viewProgress(token);
+      else if (a === 'discover') await viewDiscover(token, id);
+      else if (a === 'more') await viewMore(token);
       else if (a === 'course' && id && b === 'read') await viewReader(token, id, c);
       else if (a === 'course' && id) await viewOverview(token, id);
       else await viewHome(token);
     } catch (e) {
       if (token !== state.token) return;
       const x = explain(e);
-      renderTopbar('');
+      renderTopbar();
+      renderSidebar('');
       main.innerHTML = '<div class="page"><h1 class="title">That did not load</h1><p class="lede">' + esc(x.title) + ' ' + esc(x.hint) + '</p><p style="margin-top:18px"><a class="btn btn-primary" href="#/">Back to home</a></p></div>';
     }
     if (token === state.token) main.focus({ preventScroll: true });
@@ -293,14 +306,32 @@
     opts = opts || {};
     document.body.classList.toggle('reading', !!opts.reading);
     lastNav = opts.nav || '';
-    if (opts.reading) topbar.innerHTML = '';
-    else renderTopbar(lastNav);
-    renderBottomNav(opts.reading ? '\u0000' : lastNav);
+    if (opts.reading) {
+      topbar.innerHTML = '';
+      if ($('#sidebar')) $('#sidebar').innerHTML = '';
+      renderBottomNav('\u0000');
+    } else {
+      renderTopbar();
+      renderSidebar(lastNav);
+      renderBottomNav(lastNav);
+    }
     main.innerHTML = html;
     if (!opts.keepScroll) window.scrollTo(0, 0);
     if (opts.title) document.title = opts.title + ' · Synapse';
     return true;
   }
+
+  async function viewMore(token) {
+    const html =
+      '<div class="page"><h1 class="title">More</h1>' +
+      '<p class="lede" style="font-size:1.05rem;margin-top:6px">Everywhere you can go in Synapse.</p>' +
+      '<div class="more-grid">' +
+      DESTINATIONS.map((d) => '<a class="more-tile" href="' + d.href + '">' + icon(d.icon) + (d.badge ? queueBadgeHtml() : '') + '<span>' + d.label + '</span></a>').join('') +
+      '</div></div>';
+    if (!show(token, html, { nav: 'more', title: 'More' })) return;
+  }
+
+
 
   async function getRecord(id) {
     if (state.record && state.record.id === id) return state.record;
@@ -356,14 +387,13 @@
       '</form>' +
       '<div class="subtle-row"><a href="#/settings">AI: ' + esc(currentProvider().name) + ' · key and settings</a><button class="link-btn" id="sample" type="button">Explore a sample course</button></div>' +
       '<section id="pending"></section>' +
-      '<section id="discover"></section>' +
       '<section id="recent"></section></div>'
     );
   }
 
   async function viewHome(token) {
     const p = S.store.prefs.get();
-    if (!show(token, homeHtml(p), { nav: '', title: 'Turn curiosity into a course' })) return;
+    if (!show(token, homeHtml(p), { nav: 'home', title: 'Turn curiosity into a course' })) return;
     document.title = 'Synapse · Turn curiosity into a course';
     const form = $('#gen-form');
     const ta = $('#topic');
@@ -382,7 +412,6 @@
     $('#btn-queue').addEventListener('click', () => submitCourse(form, 'queue'));
     $('#sample').addEventListener('click', openSample);
     loadPending(token, '#pending', true);
-    loadDiscoverCard(token, 'fact');
     loadRecent(token);
   }
 
@@ -447,59 +476,206 @@
   }
 
   /* ---------- discover: real-web facts & quotes, styled as a shareable Synapse card ---------- */
-  function discoverCardHtml(card, kind, busy) {
-    const isQuote = kind === 'quote';
+  /* ============================== discover: feed, flashcards, quick quiz ============================== */
+  let dstate = null; // session state for the Discover page, reset on each fresh visit
+
+  const DISCOVER_MODES = [['feed', 'Feed'], ['flashcards', 'Flashcards'], ['quiz', 'Quick quiz']];
+
+  async function viewDiscover(token, mode) {
+    mode = DISCOVER_MODES.some((m) => m[0] === mode) ? mode : 'feed';
+    if (!dstate || dstate.token !== token) {
+      dstate = {
+        token,
+        feed: { fact: [], quote: [], seen: { fact: new Set(), quote: new Set() }, kind: 'fact', loading: false },
+        flash: null, quiz: null,
+      };
+    }
+    const html =
+      '<div class="page discover-page"><h1 class="title">Discover</h1>' +
+      '<p class="lede" style="font-size:1.05rem;margin-top:6px">Bite-sized learning for when a whole course is more than you want right now — real facts and quotes from the web, plus quick tools built from courses you\u2019ve already studied.</p>' +
+      '<div class="seg discover-modes" role="radiogroup" aria-label="Discover mode" style="margin-top:18px">' +
+      DISCOVER_MODES.map(([id, label]) => '<label><input type="radio" name="disc-mode" value="' + id + '"' + (id === mode ? ' checked' : '') + '><span>' + label + '</span></label>').join('') +
+      '</div><div id="discover-body" style="margin-top:20px"></div></div>';
+    if (!show(token, html, { nav: 'discover', title: 'Discover' })) return;
+    $$('input[name=disc-mode]').forEach((r) => r.addEventListener('change', () => { location.hash = '#/discover/' + r.value; }));
+    if (mode === 'feed') mountFeed(token);
+    else if (mode === 'flashcards') mountFlashcards(token);
+    else mountQuiz(token);
+  }
+
+  /* ---------- feed ---------- */
+  function feedCardHtml(card) {
     return (
-      '<div class="section-head"><h2>' + (isQuote ? 'Quote of the day' : 'Did you know?') + '</h2>' +
-      '<div class="seg seg-sm" role="radiogroup" aria-label="Card type">' +
-      '<label><input type="radio" name="disc-kind" value="fact"' + (!isQuote ? ' checked' : '') + '><span>' + icon('spark') + '</span></label>' +
-      '<label><input type="radio" name="disc-kind" value="quote"' + (isQuote ? ' checked' : '') + '><span>' + icon('quote') + '</span></label>' +
-      '</div></div>' +
-      '<div class="discover-card' + (busy ? ' busy' : '') + '">' +
-      (card
-        ? '<p class="discover-text">' + (isQuote ? '“' + esc(card.text) + '”' : esc(card.text)) + '</p>' +
-          '<p class="discover-attr">' + (isQuote ? '— ' : '') + esc(card.attribution) + (card.offline ? '' : card.sourceUrl ? ' <a href="' + esc(card.sourceUrl) + '" target="_blank" rel="noopener noreferrer">Source</a>' : '') + '</p>'
-        : '<p class="discover-text discover-loading">Fetching something interesting…</p>') +
-      '<div class="btn-row discover-actions">' +
-      '<button class="icon-btn" id="disc-shuffle" type="button" aria-label="Show me another">' + icon('refresh') + '</button>' +
-      '<button class="btn btn-quiet" id="disc-save" type="button">' + icon('image') + 'Save as image</button>' +
+      '<div class="discover-card feed-item">' +
+      '<p class="discover-text">' + (card.kind === 'quote' ? '\u201C' + esc(card.text) + '\u201D' : esc(card.text)) + '</p>' +
+      '<p class="discover-attr">' + (card.kind === 'quote' ? '\u2014 ' : '') + esc(card.attribution) + (!card.offline && card.sourceUrl ? ' <a href="' + esc(card.sourceUrl) + '" target="_blank" rel="noopener noreferrer">Source</a>' : '') + '</p>' +
+      '<div class="btn-row discover-actions"><button class="btn btn-quiet feed-save" type="button">' + icon('image') + 'Save as image</button></div>' +
+      '</div>'
+    );
+  }
+
+  function renderFeedList() {
+    const st = dstate.feed;
+    const list = $('#feed-list');
+    if (!list) return;
+    list.innerHTML = st[st.kind].map(feedCardHtml).join('');
+    $$('.feed-item', list).forEach((el, i) => {
+      el.querySelector('.feed-save').onclick = async () => {
+        const card = st[st.kind][i];
+        try {
+          await S.discover.downloadCard(card);
+          announceReward(S.stats.recordCardSaved());
+          toast('Saved as an image.');
+        } catch (e) { toast("Couldn't create that image on this device.", 'bad'); }
+      };
+    });
+  }
+
+  let feedObserver = null;
+  function observeFeedSentinel(token) {
+    if (feedObserver) feedObserver.disconnect();
+    const sentinel = $('#feed-sentinel');
+    if (!sentinel || !('IntersectionObserver' in window)) return;
+    feedObserver = new IntersectionObserver((entries) => { if (entries[0].isIntersecting) loadMoreFeed(token); }, { rootMargin: '600px' });
+    feedObserver.observe(sentinel);
+  }
+
+  async function loadMoreFeed(token) {
+    const st = dstate.feed;
+    if (st.loading) return;
+    st.loading = true;
+    const sentinel = $('#feed-sentinel');
+    if (sentinel) sentinel.classList.add('active');
+    const batch = await S.discover.feedBatch(st.kind, st[st.kind].length ? 4 : 6, st.seen[st.kind]);
+    st.loading = false;
+    if (token !== state.token || !location.hash.startsWith('#/discover')) return;
+    st[st.kind].push(...batch);
+    if (sentinel) sentinel.classList.remove('active');
+    renderFeedList();
+  }
+
+  async function mountFeed(token) {
+    const body = $('#discover-body');
+    const st = dstate.feed;
+    body.innerHTML =
+      '<div class="seg seg-sm" role="radiogroup" aria-label="Feed type">' +
+      '<label><input type="radio" name="feed-kind" value="fact"' + (st.kind === 'fact' ? ' checked' : '') + '><span>' + icon('spark') + '</span></label>' +
+      '<label><input type="radio" name="feed-kind" value="quote"' + (st.kind === 'quote' ? ' checked' : '') + '><span>' + icon('quote') + '</span></label>' +
+      '</div><div id="feed-list" class="feed-list"></div>' +
+      '<div id="feed-sentinel" class="feed-sentinel"><span class="feed-spinner" aria-hidden="true"></span><span class="sr">Loading more</span></div>';
+    $$('input[name=feed-kind]', body).forEach((r) => r.addEventListener('change', () => {
+      st.kind = r.value;
+      renderFeedList();
+      if (!st[st.kind].length) loadMoreFeed(token); else observeFeedSentinel(token);
+    }));
+    renderFeedList();
+    if (!st[st.kind].length) await loadMoreFeed(token);
+    if (token !== state.token) return;
+    observeFeedSentinel(token);
+  }
+
+  /* ---------- flashcards ---------- */
+  function flashCardHtml(card, flipped) {
+    return (
+      '<div class="flip-card' + (flipped ? ' flipped' : '') + '" id="flip-card" role="button" tabindex="0" aria-label="Flip card">' +
+      '<div class="flip-inner">' +
+      '<div class="flip-face flip-front"><span class="flip-kicker">' + esc(card.moduleTitle || card.courseTitle) + '</span><p>' + esc(card.front) + '</p><span class="flip-hint">Tap to reveal</span></div>' +
+      '<div class="flip-face flip-back"><p>' + esc(card.back) + '</p><span class="flip-hint">' + esc(card.courseTitle) + '</span></div>' +
       '</div></div>'
     );
   }
 
-  async function loadDiscoverCard(token, kind) {
-    const el = $('#discover');
-    if (!el) return;
-    el.innerHTML = discoverCardHtml(null, kind, true);
-    const card = await S.discover.today(kind);
-    if (token !== state.token || !$('#discover')) return;
-    renderDiscoverCard(token, card, kind);
+  function renderFlashcards(token) {
+    const body = $('#discover-body');
+    const f = dstate.flash;
+    if (!f.cards.length) {
+      body.innerHTML = '<div class="empty"><strong>No flashcards yet.</strong>Generate and save a course first \u2014 flashcards are built from its key points.<p style="margin-top:14px"><a class="btn btn-primary" href="#/">Make a course</a></p></div>';
+      return;
+    }
+    const card = f.cards[f.i];
+    body.innerHTML =
+      '<p class="flash-progress">Card ' + (f.i + 1) + ' of ' + f.cards.length + ' \u00b7 from ' + f.courseCount + (f.courseCount === 1 ? ' course' : ' courses') + '</p>' +
+      flashCardHtml(card, f.flipped) +
+      '<div class="btn-row flash-actions">' +
+      '<button class="icon-btn" id="flash-prev" aria-label="Previous card">' + icon('back') + '</button>' +
+      '<button class="btn btn-quiet" id="flash-shuffle" type="button">' + icon('refresh') + 'Reshuffle</button>' +
+      '<button class="icon-btn" id="flash-next" aria-label="Next card">' + icon('right') + '</button>' +
+      '</div>';
+    const flip = () => { f.flipped = !f.flipped; renderFlashcards(token); };
+    $('#flip-card').onclick = flip;
+    $('#flip-card').onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); flip(); } };
+    $('#flash-prev').onclick = () => { f.i = (f.i - 1 + f.cards.length) % f.cards.length; f.flipped = false; renderFlashcards(token); };
+    $('#flash-next').onclick = () => { f.i = (f.i + 1) % f.cards.length; f.flipped = false; renderFlashcards(token); };
+    $('#flash-shuffle').onclick = () => { f.cards = S.microlearn.shuffle(f.cards); f.i = 0; f.flipped = false; renderFlashcards(token); };
   }
 
-  function renderDiscoverCard(token, card, kind) {
-    const el = $('#discover');
-    if (!el) return;
-    el.innerHTML = discoverCardHtml(card, kind);
-    $$('input[name=disc-kind]', el).forEach((r) => r.addEventListener('change', () => loadDiscoverCard(token, r.value)));
-    $('#disc-shuffle').onclick = async () => {
-      el.querySelector('.discover-card').classList.add('busy');
-      const next = await S.discover.another(kind);
-      if (token === state.token && $('#discover')) renderDiscoverCard(token, next, kind);
-    };
-    $('#disc-save').onclick = async () => {
-      const btn = $('#disc-save');
-      btn.setAttribute('aria-busy', 'true');
-      try {
-        await S.discover.downloadCard(card);
-        announceReward(S.stats.recordCardSaved());
-        toast((kind === 'quote' ? 'Quote' : 'Fact') + ' card saved as an image.');
-      } catch (e) {
-        toast("Couldn't create that image on this device.", 'bad');
-      } finally {
-        btn.setAttribute('aria-busy', 'false');
-      }
-    };
+  async function mountFlashcards(token) {
+    const body = $('#discover-body');
+    body.innerHTML = '<p class="discover-loading" style="padding:20px 0">Gathering key points from your courses\u2026</p>';
+    if (!dstate.flash) {
+      const deck = await S.microlearn.flashcardDeck();
+      if (token !== state.token) return;
+      dstate.flash = { cards: deck.cards, i: 0, flipped: false, courseCount: deck.courseCount };
+    }
+    renderFlashcards(token);
   }
+
+  /* ---------- quick quiz ---------- */
+  function renderQuiz(token) {
+    const body = $('#discover-body');
+    const q = dstate.quiz;
+    if (!q.round.length) {
+      body.innerHTML = '<div class="empty"><strong>No quiz questions yet.</strong>Generate a course with quizzes turned on, then come back for a quick round.<p style="margin-top:14px"><a class="btn btn-primary" href="#/">Make a course</a></p></div>';
+      return;
+    }
+    if (q.i >= q.round.length) {
+      body.innerHTML =
+        '<div class="quiz-done"><span class="celebrate-badge">' + icon('trophy') + '</span>' +
+        '<h2>' + q.correct + ' / ' + q.round.length + '</h2>' +
+        '<p class="help">from ' + q.courseCount + (q.courseCount === 1 ? ' saved course' : ' saved courses') + '</p>' +
+        '<div class="btn-row" style="margin-top:16px;justify-content:center"><button class="btn btn-primary" id="quiz-again">Another round</button></div></div>';
+      $('#quiz-again').onclick = () => { dstate.quiz = null; mountQuiz(token); };
+      return;
+    }
+    const item = q.round[q.i];
+    const answered = q.answered;
+    body.innerHTML =
+      '<p class="flash-progress">Question ' + (q.i + 1) + ' of ' + q.round.length + ' \u00b7 ' + q.correct + ' correct so far</p>' +
+      '<p class="quiz-source">From \u201C' + esc(item.courseTitle) + '\u201D</p>' +
+      '<fieldset class="qcard" style="margin-top:6px"><legend>' + esc(item.question) + '</legend><div class="opts" role="radiogroup">' +
+      item.options.map((o, oi) => '<button type="button" class="opt' + (answered != null ? (oi === item.answerIndex ? ' correct' : oi === answered ? ' wrong' : '') : '') + '" data-o="' + oi + '" role="radio" aria-checked="' + (oi === answered) + '"><span class="l">' + 'ABCDEF'[oi] + '</span><span>' + esc(o) + '</span></button>').join('') +
+      '</div>' + (answered != null ? '<div class="explain"><b>' + (answered === item.answerIndex ? 'Correct.' : 'Not quite.') + '</b> ' + (answered === item.answerIndex ? '' : 'The answer is ' + 'ABCDEF'[item.answerIndex] + '. ') + esc(item.explanation || '') + '</div>' : '') + '</fieldset>' +
+      (answered != null ? '<div class="btn-row" style="margin-top:16px"><button class="btn btn-primary" id="quiz-next">' + (q.i + 1 < q.round.length ? 'Next question' : 'See results') + icon('right') + '</button></div>' : '');
+    if (answered == null) {
+      $$('.opt', body).forEach((b) => (b.onclick = () => {
+        const oi = +b.dataset.o;
+        q.answered = oi;
+        if (oi === item.answerIndex) q.correct++;
+        renderQuiz(token);
+      }));
+    } else {
+      $('#quiz-next').onclick = () => {
+        q.i++;
+        q.answered = null;
+        if (q.i >= q.round.length) announceReward(S.stats.recordQuizRound({ correct: q.correct, total: q.round.length }));
+        renderQuiz(token);
+      };
+    }
+  }
+
+  async function mountQuiz(token) {
+    const body = $('#discover-body');
+    body.innerHTML = '<p class="discover-loading" style="padding:20px 0">Gathering quiz questions from your courses\u2026</p>';
+    if (!dstate.quiz) {
+      const pool = await S.microlearn.quizPool();
+      if (token !== state.token) return;
+      const round = pool.items.slice(0, 12);
+      dstate.quiz = { round, i: 0, correct: 0, answered: null, courseCount: pool.courseCount };
+    }
+    renderQuiz(token);
+  }
+
+
 
   async function loadPending(token, sel, linkToAll) {
     const list = await S.store.queue.list();
@@ -1037,7 +1213,7 @@
       '</section>' +
       '<section class="settings-sec"><h2>Appearance</h2><div class="seg" role="radiogroup" aria-label="Theme">' + [['system', 'System'], ['light', 'Light'], ['dark', 'Dark']].map((t) => '<label><input type="radio" name="theme" value="' + t[0] + '"' + (theme === t[0] ? ' checked' : '') + '><span>' + t[1] + '</span></label>').join('') + '</div></section>' +
       '<section class="settings-sec"><h2>Offline and install</h2><p id="pwa-text" class="help" style="font-size:.98rem">' + esc(pwaStatusText()) + '</p><div class="btn-row" style="margin-top:12px"><button class="btn btn-primary" id="install"' + (state.pwa.deferred ? '' : ' hidden') + '>Install Synapse</button></div></section>' +
-      '<section class="settings-sec"><h2>Your data</h2><p class="help" style="font-size:.98rem" id="usage">Courses and progress are stored only in this browser.</p><div class="btn-row" style="margin-top:12px"><button class="btn btn-quiet" id="backup">Export a backup</button><button class="btn btn-danger" id="wipe">Delete all saved courses</button></div>' +
+      '<section class="settings-sec"><h2>Your data</h2><p class="help" style="font-size:.98rem" id="usage">Courses and progress are stored only in this browser.</p><div class="btn-row" style="margin-top:12px"><button class="btn btn-quiet" id="backup">' + icon('download') + 'Export a backup</button><button class="btn btn-quiet" id="import-btn">' + icon('upload') + 'Import a backup</button><input type="file" id="import-file" accept="application/json" hidden><button class="btn btn-danger" id="wipe">Delete all saved courses</button></div><p class="status-line" id="import-status" role="status"></p>' +
       '<p class="help" style="margin-top:18px">Privacy: Synapse has no accounts and no analytics. Your topic and lesson requests are sent only to the AI providers you configure. Photo look-ups contact Wikimedia Commons with a short search phrase. Fonts and PDF libraries are loaded from public CDNs and cached. Nothing else leaves your device.</p></section></div>';
     if (!show(token, html, { nav: 'settings', title: 'Settings' })) return;
 
@@ -1106,6 +1282,14 @@
       $('#install').hidden = true;
     };
     $('#backup').onclick = exportBackup;
+    $('#import-btn').onclick = () => $('#import-file').click();
+    $('#import-file').addEventListener('change', async (e) => {
+      const file = e.target.files && e.target.files[0];
+      e.target.value = '';
+      if (!file) return;
+      $('#import-status').textContent = 'Reading backup\u2026';
+      await importBackupFile(file);
+    });
     $('#wipe').onclick = async () => {
       const ok = await confirmDialog({ title: 'Delete all saved courses?', body: 'Every course and all reading progress will be removed from this browser. This cannot be undone.', confirm: 'Delete everything', danger: true });
       if (!ok) return;
@@ -1119,12 +1303,70 @@
 
   async function exportBackup() {
     try {
-      const [courses, prefs, settings] = await Promise.all([S.store.courses.list().then((l) => Promise.all(l.map((s) => S.store.courses.get(s.id)))), S.store.prefs.get(), S.store.settings.get()]);
-      const data = { kind: 'synapse-backup', version: 1, exportedAt: Date.now(), prefs, settings, courses };
+      const summaries = await S.store.courses.list();
+      const courses = await Promise.all(summaries.map(async (s) => {
+        const rec = await S.store.courses.get(s.id);
+        const progress = await S.store.progress.get(s.id);
+        return Object.assign({}, rec, { progress });
+      }));
+      const [prefs, settings, profile] = [S.store.prefs.get(), S.store.settings.get(), S.store.profile.get()];
+      const stats = S.stats.load();
+      const data = { kind: 'synapse-backup', version: 2, exportedAt: Date.now(), prefs, settings, profile, stats, courses };
       const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
       downloadBlob(blob, 'synapse-backup-' + new Date().toISOString().slice(0, 10) + '.json');
       toast('Backup downloaded. It does not include your API keys.');
     } catch (e) { toast('Could not create a backup on this device.', 'bad'); }
+  }
+
+  async function importBackupFile(file) {
+    let data;
+    try { data = JSON.parse(await file.text()); } catch (e) { toast('That file is not a valid Synapse backup.', 'bad'); return; }
+    if (!data || data.kind !== 'synapse-backup' || !Array.isArray(data.courses)) { toast('That file is not a valid Synapse backup.', 'bad'); return; }
+
+    const existingIds = new Set((await S.store.courses.list()).map((c) => c.id));
+    const candidates = data.courses.filter((c) => c && c.id && c.course && !existingIds.has(c.id));
+    const skipped = data.courses.length - candidates.length;
+    const hasExtras = !!(data.prefs || data.settings || data.profile || data.stats);
+
+    if (!candidates.length && !hasExtras) {
+      toast('Nothing new to import \u2014 every course in that backup is already in your library.');
+      return;
+    }
+
+    let restoreExtras = false;
+    if (hasExtras) {
+      restoreExtras = await confirmDialog({
+        title: candidates.length ? 'Also restore settings?' : 'Nothing new to add',
+        body: (candidates.length ? 'Every course in this backup is already saved, or will be in a moment. ' : 'Every course in this backup is already in your library. ') +
+          'This backup also has your preferences, profile name and progress stats \u2014 restore those too? This replaces your current ones (your API keys are never included or touched).',
+        confirm: 'Restore those too', danger: false,
+      });
+    }
+
+    let imported = 0;
+    for (const rec of candidates) {
+      try {
+        const course = S.schema.normalizeCourse(rec.course);
+        await S.store.courses.save({ id: rec.id, topic: rec.topic || '', course, createdAt: rec.createdAt, updatedAt: rec.updatedAt });
+        if (rec.progress) await S.store.progress.save(Object.assign(S.store.progress.blank(rec.id), rec.progress, { id: rec.id }));
+        imported++;
+      } catch (e) { /* skip anything malformed and keep going */ }
+    }
+
+    if (restoreExtras) {
+      if (data.prefs) S.store.prefs.set(data.prefs);
+      if (data.settings) S.store.settings.set(Object.assign({}, data.settings, { customBaseUrl: data.settings.customBaseUrl || '' }));
+      if (data.profile) S.store.profile.set(data.profile);
+      if (data.stats) S.stats.save(Object.assign(S.stats.load(), data.stats));
+    }
+
+    await refreshQueueBadge();
+    let msg;
+    if (imported === 0 && !restoreExtras) msg = 'Nothing changed \u2014 every course was already in your library.';
+    else if (imported === 0) msg = 'Preferences and stats restored. No new courses to add.';
+    else msg = 'Imported ' + imported + (imported === 1 ? ' course' : ' courses') + (skipped ? ', skipped ' + skipped + ' already in your library' : '') + (restoreExtras ? ', and restored your preferences and stats' : '') + '.';
+    toast(msg);
+    viewSettings(state.token);
   }
 
   /* ============================== reader ============================== */

@@ -69,13 +69,24 @@ IBM Plex TTFs for the PDF (falls back to bundled Roboto if unreachable).
 * The model never supplies image URLs; photos come from Wikimedia Commons with licence and attribution, or are omitted.
 * Progress is reported as real counts (module 3 of 6), never a percentage.
 
-## Real-web facts & quotes
-The home screen has a "Did you know?" / quote-of-the-day card. Facts come from Wikipedia's public
-REST API, picked around a topic from a course already in the library when one exists (otherwise a
-random Wikipedia fact); quotes come from a free public quotes API. Both are real web content, not
-AI-generated, and both gracefully fall back to a small bundled set if the network or the source is
-unavailable — including fully offline. "Save as image" renders the card as a Synapse-styled PNG
-(1080×1080, canvas-drawn) for sharing.
+## Discover: feed, flashcards & quick quiz
+Its own nav destination (not buried on Home). A continuous-scroll feed of real facts (Wikipedia,
+topic-aware once you've saved a course) and quotes (a public quotes API), each saveable as a
+Synapse-styled PNG card — plus two more zero-cost study tools built entirely from courses already
+in the library: Flashcards (flip through key points) and Quick Quiz (a pooled round of questions
+from every saved course). Everything degrades gracefully offline via a small bundled set.
+
+## Navigation
+Mobile: a 4-item bottom bar (Home, Discover, Pending, More). "More" opens a full page listing every
+destination. Any page not in that bottom bar (Saved courses, Progress, Settings, a course overview,
+a queue item) hides the bar entirely rather than highlighting nothing. Desktop: a persistent left
+sidebar replaces both, listing every destination at once — no "More" needed when there's room.
+
+## Backup & restore
+Settings → Your data can export everything (courses, progress, preferences, profile name, and
+streak/XP stats — never API keys) as one JSON file, and import it back in on this or another
+device. Import only adds courses you don't already have; restoring preferences/profile/stats is a
+separate, explicit choice so it never silently overwrites what's already there.
 
 ## Streaks, XP, achievements & certificates
 Reading a lesson, finishing a project, or completing a course earns XP and keeps a daily study

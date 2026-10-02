@@ -28,8 +28,13 @@
 <body>
   <a class="skip" href="#main">Skip to content</a>
   <div id="offline-banner" class="offline-banner" role="status" hidden>You're offline. Saved courses still work; generating a new course needs a connection.</div>
-  <header id="topbar" class="topbar"></header>
-  <main id="main" tabindex="-1"></main>
+  <div class="app-shell">
+    <aside id="sidebar" class="sidebar" aria-label="Main"></aside>
+    <div class="app-col">
+      <header id="topbar" class="topbar"></header>
+      <main id="main" tabindex="-1"></main>
+    </div>
+  </div>
   <nav id="bottomnav" class="bottomnav" aria-label="Primary"></nav>
   <div id="toasts" class="toasts" aria-live="polite"></div>
   <dialog id="dialog"></dialog>
@@ -47,6 +52,7 @@
   <script src="js/mock.js"></script>
   <script src="js/stats.js"></script>
   <script src="js/discover.js"></script>
+  <script src="js/microlearn.js"></script>
   <script src="js/pdf.js"></script>
   <script src="js/certificate.js"></script>
   <script src="js/zip.js"></script>
