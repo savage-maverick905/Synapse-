@@ -340,7 +340,7 @@ body.reading .topbar { display: none; }
 
 /* contents stays a slide-out drawer on every screen size (desktop included) */
 
-.lesson { width: 100%; max-width: 41rem; margin: 0 auto; padding: 26px var(--pad) 140px; }
+.lesson { width: 100%; max-width: 41rem; margin: 0 auto; padding: 26p 12px 140px; }
 .lesson-kicker { font-size: .92rem; color: var(--ink-3); font-weight: 600; display: flex; flex-wrap: wrap; gap: 2px 14px; }
 .lesson h1 { font-size: clamp(2rem, 7.5vw, 2.9rem); line-height: 1.04; letter-spacing: -.022em; font-weight: 760; font-variation-settings: "wdth" 92; margin: 10px 0 14px; text-wrap: balance; }
 .lesson-lede { font-family: var(--font-read); font-style: italic; font-size: calc(1.2rem * var(--rs)); line-height: 1.45; color: var(--ink-2); margin-bottom: 8px; }
