@@ -339,7 +339,6 @@ body.reading .topbar { display: none; }
 .toc-single { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 4px 0; text-decoration: none; color: var(--ink); font-weight: 650; border-bottom: 1px solid var(--line-2); }
 
 /* contents stays a slide-out drawer on every screen size (desktop included) */
-}
 
 .lesson { width: 100%; max-width: 41rem; margin: 0 auto; padding: 26px var(--pad) 140px; }
 .lesson-kicker { font-size: .92rem; color: var(--ink-3); font-weight: 600; display: flex; flex-wrap: wrap; gap: 2px 14px; }
